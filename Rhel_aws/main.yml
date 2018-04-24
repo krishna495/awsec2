@@ -1,0 +1,8 @@
+---
+ - hosts: localhost
+   gather_facts: true
+   user: ec2-user
+   pre_tasks:
+    - include_vars: group_vars/dev_vars.yml
+   roles:
+    - provisioning 

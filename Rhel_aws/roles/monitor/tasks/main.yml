@@ -1,0 +1,38 @@
+---
+# tasks file for roles/monitor
+ - name: Creating Monitor User for  Instance
+   user: name={{ aws_instance_monitor_user }} password={{ aws_instance_monitor_pass }}
+   sudo: yes
+
+ - name: Updating Access from SSH for Monitor
+   lineinfile: dest=/etc/ssh/sshd_config regexp=^PasswordAuthentication line="PasswordAuthentication yes" backup=yes
+   sudo: yes
+
+ - name: Getting Host IP
+   shell: curl http://169.254.169.254/latest/meta-data/local-ipv4 ; echo
+   register: host_ip
+
+ - name: Updating ENV for monitor Script
+   lineinfile: dest=/home/ec2-user/.bashrc line="export VM_MONITOR_HOST={{ host_ip.stdout }}"
+
+ - name: Updating ENV for monitor Script
+   lineinfile: dest=/home/ec2-user/.bashrc line="export VM_HOST_NAME={{ VM_HOST_NAME }}"
+   sudo: yes
+
+ - name: Updating ENV for monitor Script
+   lineinfile: dest=/home/ec2-user/.bashrc line="export DEPLOY_ENV={{ aws_deplo_env }}"
+   sudo: yes
+
+ - name: Installing Sysstat module for sar report genertion
+   yum: name=sysstat state=latest
+   sudo: yes
+
+ - name: Starting sar generation service sysstat
+   service: name=sysstat state=started
+   sudo: yes
+
+ - name: Restarting SSHD Service
+   service: name=sshd state=restarted
+   sudo: yes
+
+

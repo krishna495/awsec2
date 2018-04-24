@@ -1,0 +1,30 @@
+[libdefaults]
+ default_realm = MHF.MHC
+
+ ticket_lifetime = 15
+ forwardable = true
+ default_keytab_name = /etc/opt/quest/vas/host.keytab
+ default_etypes = arcfour-hmac-md5
+ default_etypes_des = des-cbc-crc
+
+[domain_realm]
+ {{ vmware_instance_hostname }} = MHF.MHC
+
+[libvas]
+ use-dns-srv = true
+
+[vasd]
+ workstation-mode = false
+
+ perm-disconnected-update = 90
+ group-search-path = DC=mhf,DC=mhc;DC=mhf2,DC=mhf,DC=mhc;DC=mhf1,DC=mhf,DC=mhc
+ user-search-path = DC=mhf,DC=mhc;DC=mhf2,DC=mhf,DC=mhc;DC=mhf1,DC=mhf,DC=mhc
+[pam_vas]
+ prompt-ad-lockout-msg = Your Active Directory account has been locked out. Please contact the MGH help desk.
+ prompt-local-pw = Local Account Password:
+ prompt-vas-ad-disauth-pwcache = (DISCONNECTED MODE) AD Account Password:
+ prompt-vas-ad-pw = AD Account Password:
+ show-lockout-message = true
+[vas_auth]
+ perm-disconnected-users = mhf\ad.na.unixadmins
+

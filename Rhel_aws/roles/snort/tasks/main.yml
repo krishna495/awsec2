@@ -1,0 +1,167 @@
+---
+# tasks file for snort
+#- name: yum update
+#  command: yum update -y
+#  sudo: True
+
+#- name: Install Wget
+#  yum: name=wget state=latest
+#  sudo: True
+
+- name: Install bison flex
+  shell: yum install gcc bison flex zlib* libpcap* pcre* libdnet tcpdump -y
+  sudo: True
+- name: copy file in libnghttp
+  copy:
+   src: libnghttp2-1.7.1-1.el7.x86_64.rpm
+   dest: /home/ec2-user/libnghttp2-1.7.1-1.el7.x86_64.rpm
+- name: lib
+  shell: chdir=/home/ec2-user/ rpm -ivh --force libnghttp2-1.7.1-1.el7.x86_64.rpm
+  sudo: True
+
+- name: copy file in remote
+  copy:
+   src: libpcap-1.7.4.tar.gz
+   dest: /home/ec2-user/libpcap-1.7.4.tar.gz
+
+- name: archive the tcpdump
+  command: chdir=/home/ec2-user tar -xvzf libpcap-1.7.4.tar.gz
+  sudo: True
+
+- name: In Tcpdump configure
+  command: chdir=/home/ec2-user/libpcap-1.7.4 ./configure
+  sudo: True
+
+- name: make
+  command: chdir=/home/ec2-user/libpcap-1.7.4 make
+  sudo: True
+
+- name: make install
+  command: chdir=/home/ec2-user/libpcap-1.7.4 make install
+  sudo: True
+
+- name: copy file in libnghttp
+  copy:
+   src: daq-2.0.6-1.centos7.x86_64.rpm
+   dest: /home/ec2-user/daq-2.0.6-1.centos7.x86_64.rpm
+- name:  centos
+  shell: chdir=/home/ec2-user/ rpm -ivh daq-2.0.6-1.centos7.x86_64.rpm
+
+- name: snort rpm
+  copy:
+   src: snort-2.9.9.0-1.centos7.x86_64.rpm
+   dest: /home/ec2-user/snort-2.9.9.0-1.centos7.x86_64.rpm
+
+
+- name: snort centos
+  shell: chdir=/home/ec2-user/ rpm -ivh snort-2.9.9.0-1.centos7.x86_64.rpm
+- name: copy file in remote SNORT
+  copy:
+   src: snortrules-snapshot-2990.tar.gz?oinkcode=b71fe8eb2e2b4d8d7d32aaa057a566315ca006dc
+   dest: /home/ec2-user/snortrules-snapshot-2990.tar.gz?oinkcode=b71fe8eb2e2b4d8d7d32aaa057a566315ca006dc
+
+- name: archive the SNORT
+  command: chdir=/home/ec2-user tar -xvzf snortrules-snapshot-2990.tar.gz?oinkcode=b71fe8eb2e2b4d8d7d32aaa057a566315ca006dc -C /etc/snort/rules
+  sudo: True
+
+- name: copy Snort community-rules
+  copy:
+   src: community-rules.tar.gz
+   dest: /home/ec2-user/community-rules.tar.gz
+
+- name: archive the community-rules
+  command: chdir=/home/ec2-user tar -xvzf community-rules.tar.gz -C /etc/snort/rules
+  sudo: True
+
+
+
+- name: cerate snort_dynamicrules
+  file: path=/usr/local/lib/snort_dynamicrules state=directory
+  sudo: True
+
+
+- name: cerate whitelist
+  file: path=/etc/snort/rules/white_list.rules state=touch
+  sudo: True
+
+- name: cerate black_list
+  file: path=/etc/snort/rules/black_list.rules state=touch
+  sudo: True
+  
+- name: # incudle in snort.conf 
+  shell: chdir=/etc/snort/  sed -i "s/\(include\)/#\1/g" snort.conf
+  
+
+- name: ip host
+  shell: curl http://169.254.169.254/latest/meta-data/local-ipv4
+  sudo: True
+  register: new_hostname
+
+- name: Created hostnamre Info
+  debug:
+    msg: '{{ new_hostname.stdout  }}'
+- name: hostname inot snort.conf
+  lineinfile:
+   path: /etc/snort/snort.conf
+   regexp: '^ipvar HOME_NET'
+   line: "ipvar HOME_NET {{ new_hostname.stdout }}/32"
+   
+
+- name: Change snort.conf for EXTERNAL_NET
+  lineinfile:
+   path: /etc/snort/snort.conf
+   regexp: '^ipvar EXTERNAL_NET'
+   line: 'ipvar EXTERNAL_NET !$HOME_NET'
+
+- name: Change snort.conf for rules
+  lineinfile:
+   path: /etc/snort/snort.conf
+   regexp: '^var RULE_PATH'
+   line: 'var RULE_PATH rules'
+
+- name: Change snort.conf for so_rules
+  lineinfile:
+   path: /etc/snort/snort.conf
+   regexp: '^var SO_RULE_PATH'
+   line: 'var SO_RULE_PATH so_rules'
+
+- name: Change snort.conf for preproc_rules
+  lineinfile:
+   path: /etc/snort/snort.conf
+   regexp: '^var PREPROC_RULE_PATH'
+   line: 'var PREPROC_RULE_PATH preproc_rules'
+
+- name: Change snort.conf for white_list rules
+  lineinfile:
+   path: /etc/snort/snort.conf
+   regexp: '^var WHITE_LIST_PATH'
+   line: 'var WHITE_LIST_PATH rules'
+
+- name: Change snort.conf for black_list rules
+  lineinfile:
+   path: /etc/snort/snort.conf
+   regexp: '^var BLACK_LIST_PATH '
+   line: 'var BLACK_LIST_PATH rules'
+- name: include local.rule
+  lineinfile:
+   path: /etc/snort/snort.conf
+   regexp: '^#include $RULE_PATH/'
+   line: 'include $RULE_PATH/local.rules'
+
+- name: start the snort
+  command: /etc/init.d/snortd start
+
+- name: cerate local.rules
+  file: path=/etc/snort/rules/local.rules  state=touch
+  sudo: True
+
+
+- name: Change snort.conf for rules
+  lineinfile:
+    path: /etc/snort/rules/local.rules
+    regexp: '^ '
+    line: 'alert icmp $EXTERNAL_NET any -> $HOME_NET any (msg:"Incoming ICMP connection"; sid:10002;)'
+
+
+- name: snort restart
+  command: /etc/init.d/snortd restart

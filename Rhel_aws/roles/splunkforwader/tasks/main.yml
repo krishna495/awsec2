@@ -1,0 +1,37 @@
+---
+# tasks file for splunkforwader
+
+- name: copy file in remote
+  copy:
+   src: splunkforwarder-6.5.2-67571ef4b87d-Linux-x86_64.tgz
+   dest: /opt/splunkforwarder-6.5.2-67571ef4b87d-Linux-x86_64.tgz
+
+ 
+- name: archive the splunk
+  command: chdir=/opt/ tar xvzf splunkforwarder-6.5.2-67571ef4b87d-Linux-x86_64.tgz
+  sudo: True
+
+- name: start the splunk
+  command: /opt/splunkforwarder/bin/splunk start --answer-yes --no-prompt --accept-license
+  sudo: True
+
+- name: copy file in remote with outputs.conf
+  copy:
+   src: outputs.conf
+   dest: /opt/splunkforwarder/etc/system/local/outputs.conf
+
+- name: add forwader 
+  command: chdir=/opt/splunkforwarder/bin ./splunk add forward-server '{{ splunk_server }}':'{{ splunk_port }}' -auth admin:changeme
+
+- name: change logs messages
+  command: chdir=/opt/splunkforwarder/bin ./splunk add monitor /var/log/messages -auth admin:changeme
+
+- name: change logs secure
+  command: chdir=/opt/splunkforwarder/bin ./splunk add monitor /var/log/secure -auth admin:changeme
+
+- name: change the logs snort
+  command: chdir=/opt/splunkforwarder/bin ./splunk add monitor /var/log/snort/alert -auth admin:changeme
+
+- name: restart
+  command: chdir=/opt/splunkforwarder/bin ./splunk restart
+

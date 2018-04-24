@@ -1,0 +1,97 @@
+---
+# tasks file for qas
+- name: Fetching file from FTP
+  fetch:
+    src: ftp://appzftp:appzftp@10.164.136.52/sxp-ftp/quest/qas41.tar.gz
+    dest: /tmp/
+    flat: yes
+
+- name: DownLoading vasclnt binaries From FTP Server
+  command: wget -O /tmp/qas41.tar.gz ftp://appzftp:appzftp@10.164.136.52/sxp-ftp/quest/qas41.tar.gz
+  sudo: True
+
+- name: Extracting QAS archive
+  command: chdir=/usr/share /bin/tar xvzf /tmp/qas41.tar.gz -C /opt/ creates=/opt/qas41
+  sudo: True
+
+- name: Copying VAS_license_114-764-760
+  copy: src=VAS_license_114-764-760 dest=/opt/.licences/ mode=0755
+  sudo: True
+
+- name: Copying VAS_license_130-856-681
+  copy: src=VAS_license_130-856-681 dest=/opt/.licences/ mode=0755
+  sudo: True
+
+- name: Downloading KeyTab from FTP Server
+  get_url:
+      url: ftp://appzftp:appzftp@10.164.136.52/sxp-ftp/quest/{{ key_tab }}
+      dest: /tmp/
+
+- name: Installing VAS Client
+  command:  /opt/install.sh vasclnt -l /opt/.licences/VAS_license_114-764-760
+  sudo: yes
+
+- name: Installing VASGP
+  command:  /opt/install.sh vasgp -l /opt/.licences/VAS_license_130-856-681 
+  sudo: yes
+
+- name: Downloading Quest DNS Update from FTP Server
+  get_url:
+      url: ftp://appzftp:appzftp@10.164.136.52/sxp-ftp/quest/quest-dnsupdate-4.1.0-1.x86_64.rpm
+      dest: /tmp/
+
+- name: Installing Quest DNS Server
+  command: rpm -ivh /tmp/quest-dnsupdate-4.1.0-1.x86_64.rpm
+  sudo: yes
+
+- name: Template Copying for QAS
+  template:
+    src: nsswitch_conf
+    dest: /etc/nsswitch.conf
+    mode: "u=rw,g=r,o=r"
+  sudo: yes
+
+- name: Template Copying for QAS
+  template:
+    src: qas_conf
+    dest: /etc/opt/quest/vas/vas.conf
+    mode: "u=rw,g=r,o=r"
+  sudo: yes
+
+- name: Joining the Domain
+  command: /opt/quest/bin/vastool  -u svc-mclddomjoin@mhf.mhc  -k /tmp/{{ key_tab }} join -c "OU=Linux,OU=MCloud,OU=Development & Testing,OU=Enterprise Services,DC=mhf,DC=mhc"  -f mhf.mhc 
+  sudo: yes
+
+- name: Update User list
+  lineinfile:
+    dest=/etc/opt/quest/vas/users.allow
+    line="MHF\{{ item }}"
+    state=present
+    insertafter=EOF
+    create=True
+  with_items: "{{ git_users.split(',') }}"
+  sudo: yes
+
+- name: Copying Agent
+  copy:
+    src: "{{ role_path }}/files/agent/"
+    dest: /opt/ntp_agent
+  sudo: True
+
+- name: Changing Permission
+  file:
+    path: /opt/ntp_agent/
+    state: directory
+    mode: 0755
+    recurse: yes
+  sudo: True
+
+- name: Running NTP Server
+  shell: cd /opt/ntp_agent/ ; /opt/ntp_agent/ntp_daemon_agent.sh
+  sudo: yes
+
+- name: Running Checklist
+  shell: cd /opt/ntp_agent/ ; ./vm_checklist.sh
+  sudo: yes
+
+

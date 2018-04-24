@@ -1,0 +1,14 @@
+aws_instance_keypair: INNOMINDS
+aws_instance_security_group: sg-00f785db556c9237b
+aws_instance_type: t2.micro
+aws_instance_image: ami-6871a115
+aws_instance_subnet_ids: subnet-b41e03d0
+aws_instance_region: us-east-1
+aws_instance_tag_Name: AWS-tower
+aws_instance_tag_Type: innominds 
+aws_instance_tag_Environment: dev
+aws_bu: innominds
+aws_instance_count: 1
+aws_instance_volume_size: 10
+aws_account_code: 1201020123
+
