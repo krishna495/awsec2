@@ -1,8 +1,0 @@
-key_tab: 'svc-mclddomjoin.keytab'
-
-aws_account_code: '0101.9236.930037'
-aws_bu: 'Corp'
-
-
-splunk_server: '10.164.136.143'
-splunk_port: '9997'
