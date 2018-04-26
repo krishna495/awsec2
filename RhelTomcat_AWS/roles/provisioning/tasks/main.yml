@@ -1,0 +1,65 @@
+---
+# tasks file for roles/provisioning
+ - name: Provisoning Rhel Instances in AWS
+   local_action:
+     module: ec2
+     aws_access_key: '{{ aws_access_key }}'
+     aws_secret_key: '{{ aws_secret_key }}'
+     key_name: '{{ aws_instance_keypair }}'
+     group_id: '{{ aws_instance_security_group }}'
+     instance_type: '{{ aws_instance_type }}'
+     image: '{{ aws_instance_image }}'
+     vpc_subnet_id: '{{ aws_instance_subnet_ids }}'
+     region: '{{ aws_instance_region }}'
+     instance_tags: 
+         Name: '{{ aws_instance_tag_Name }}'
+         Type: '{{ aws_instance_tag_Type }}'
+         Environment: '{{ aws_instance_tag_Environment }}'
+         AccountingCode: '{{ aws_account_code }}'
+         BU: '{{ aws_bu }}'
+     #assign_public_ip: yes
+     wait: true
+     count: '{{ aws_instance_count }}'
+     volumes:
+     - device_name: /dev/xvda
+       device_type: gp2
+       volume_size: '{{ aws_instance_volume_size }}'
+       delete_on_termination: true
+   register: aws_new_instance
+
+ - name: Adding Host Info to Registry Variable
+   add_host: name={{ item.private_ip }} >
+             groups=aws_instance_tag_Type_{{aws_instance_tag_Type}},tag_Environment_{{aws_instance_tag_Environment}}
+             aws_instance_region={{aws_instance_region}}
+             aws_instance_tag_Name={{aws_instance_tag_Name}}
+             aws_instance_tag_Type={{aws_instance_tag_Type}}
+             aws_instance_tag_Environment={{ aws_instance_tag_Environment }}
+             ec2_ip_address={{item.private_ip}}
+   with_items: '{{ aws_new_instance.instances }}'
+
+ - name: Wait for the instances to boot by checking the ssh port
+   wait_for: host={{item.private_ip}} port=22 delay=60 timeout=320 state=started
+   with_items: '{{ aws_new_instance.instances }}'
+
+ - name: Cleaning Inventory file
+   become: yes
+   become_method: sudo
+   local_action: lineinfile dest={{ playbook_dir }}/hosts regexp='^10' state=absent
+
+ - name: Updating the VM IP to Inventory file
+   become: yes
+   become_method: sudo
+   local_action: lineinfile dest={{ playbook_dir }}/hosts  regexp="{{ item.private_ip }} ansible_ssh_private_key_file={{ playbook_dir }}/{{ aws_instance_keypair_path }}/{{ aws_instance_keypair }}.pem" state=present
+                 insertafter="\[Rhel\]" line="{{ item.private_ip }} ansible_ssh_private_key_file={{ playbook_dir }}/{{ aws_instance_keypair_path }}/{{ aws_instance_keypair }}.pem"
+   with_items: '{{ aws_new_instance.instances}}'
+
+ - name: add the inventory to appz tables
+   script: "/bin/bash -c '/usr/bin/python -m com.cldbrn.appz.engine.services.buildsetupservice  {{ in_app_name }} {{ BUILD_MAJOR_MINOR_VERSION }} {{ item.private_ip }} {{ item.private_dns_name }} {{ aws_deplo_env }} '"
+   with_items: '{{ aws_new_instance.instances}}'
+
+ - name: Updating ENV for monitor Script
+   become: yes
+   become_method: sudo
+   lineinfile: dest={{ playbook_dir }}/group_vars/dev_vars.yml regexp=^VM_HOST_NAME  line="VM_HOST_NAME:\t \"{{ item.private_dns_name }}\" "
+   with_items: '{{ aws_new_instance.instances }}'
+

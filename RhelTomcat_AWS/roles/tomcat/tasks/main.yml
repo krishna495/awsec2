@@ -1,0 +1,51 @@
+---
+
+- name: Install Wget
+  yum: name=wget state=latest
+  sudo: True
+
+- name: Install Java 1.8
+  yum: name=java-1.8.0 state=latest
+  sudo: True
+
+- name: add group "tomcat"
+  group: name=tomcat
+  sudo: True
+
+
+- name: add user "tomcat"
+  user: name=tomcat group=tomcat home=/usr/share/tomcat createhome=no
+  sudo: True
+
+- name: Copying Tomcat8 Binaries
+  copy: src=apache-tomcat-8.5.8.tar.gz dest=/opt/ mode=0755
+  sudo: True
+
+- name: Extract archive
+  command: chdir=/usr/share /bin/tar xvf /opt/apache-tomcat-8.5.8.tar.gz -C /opt/ creates=/opt/apache-tomcat-8.5.8
+  sudo: True
+
+- name: Symlink install directory
+  file: src=/opt/apache-tomcat-8.5.8 dest=/usr/share/tomcat   group=tomcat owner=tomcat state=link
+  sudo: True
+
+- name: Change ownership of Tomcat installation
+  file: path=/opt/apache-tomcat-8.5.8 owner=tomcat group=tomcat recurse=yes state=directory
+  sudo: True
+
+- name: Install Tomcat init script
+  copy: src=tomcat-initscript.sh dest=/etc/init.d/tomcat mode=0755
+  sudo: True
+
+- name: Copying Catalina with JMX
+  copy: src=catalina.sh dest=/opt/apache-tomcat-8.5.8/bin/catalina.sh mode=0755
+  sudo: True
+
+- name: Installing WebApp
+  copy: src=HelloWorld.war dest=/opt/apache-tomcat-8.5.8/webapps
+  sudo: True
+
+- name: Starting Tomcat
+  command: "/etc/init.d/tomcat start"
+  sudo: True
+

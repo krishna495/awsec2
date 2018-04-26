@@ -1,0 +1,11 @@
+vasclnt_installer: 'vasclnt-4.1.0-20185.x86_64.rpm'
+vasgp_installer: 'vasgp-4.1.0-20185.x86_64.rpm'
+key_tab: 'svc-mclddomjoin.keytab'
+
+aws_account_code: '0101.9236.930037'
+aws_bu: 'Corp'
+
+
+splunk_server: '10.164.136.143'
+splunk_port: '9997'
+VM_HOST_NAME:	 "ip-10-164-136-140.ec2.internal" 

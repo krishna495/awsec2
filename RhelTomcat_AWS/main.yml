@@ -1,0 +1,72 @@
+---
+ - hosts: localhost
+   connection: local
+   gather_facts: yes
+   user: ec2-user
+   pre_tasks:
+    - include_vars: group_vars/secrets_vars.yml
+    - include_vars: group_vars/dev_vars.yml
+   tasks:
+   - name: Collecting the facts.
+     local_action:
+        module: ec2_remote_facts
+        aws_access_key: '{{ aws_access_key }}'
+        aws_secret_key: '{{ aws_secret_key }}'
+        region: '{{ aws_instance_region }}'
+        filters:
+           "tag:Name": '{{ aws_instance_tag_Name }}'
+     register: ec2_facts
+              
+   - name: Starting  the instances When it's in Stopped State
+     local_action:
+        module: ec2
+        aws_access_key: '{{ aws_access_key }}'
+        aws_secret_key: '{{ aws_secret_key }}'
+        region: '{{ aws_instance_region }}'
+        wait: yes
+        wait_timeout: 500
+        instance_ids: "{{ item.id }}"
+        state: 'running'
+     when: '"stopped" in item.state'
+     with_items: '{{ ec2_facts.instances }}'
+     ignore_errors: yes
+
+   - name: Mark app servers to terminate
+     environment:
+       AWS_ACCESS_KEY_ID: '{{ aws_access_key }}'
+       AWS_SECRET_ACCESS_KEY: '{{ aws_secret_key }}'
+     local_action: ec2_tag resource={{item.id}}  state=present  region={{aws_instance_region}}
+     args:
+       tags:
+         terminate_vm_tag: "{{ aws_instance_termination_tag }}"
+     with_items: '{{ ec2_facts.instances }}'
+
+ - hosts: localhost
+   connection: local
+   gather_facts: true
+   user: root
+   pre_tasks:
+    - include_vars: group_vars/secrets_vars.yml
+    - include_vars: group_vars/dev_vars.yml
+   roles:
+    - provisioning
+    - termination
+   post_tasks:
+    - name: "refresh inventory"
+      meta: refresh_inventory
+        
+ - hosts: Rhel
+   gather_facts: true
+   sudo: yes
+   user: ec2-user
+   sudo: yes
+   pre_tasks:
+    - include_vars: group_vars/secrets_vars.yml
+    - include_vars: group_vars/dev_vars.yml
+   roles:
+    - monitor
+    - apache_provision
+    - tomcat
+    - snort
+    - splunkforwader
+
